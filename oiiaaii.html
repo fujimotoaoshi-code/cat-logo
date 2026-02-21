@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DVD Bounce (Web)</title>
+  <style>
+    html, body { margin:0; height:100%; overflow:hidden; background:#000; }
+    canvas { display:block; width:100vw; height:100vh; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+
+  // ===== 設定（ここだけ触ればOK）=====
+  const LOGO_URL = "https://raw.githubusercontent.com/fujimotoaoshi-code/cat-logo/main/logo.png";
+  const BG_URL   = "https://raw.githubusercontent.com/fujimotoaoshi-code/cat-logo/main/windows.jpg";
+  const speed = 1.0;      // 速さ（CSS px / frame）
+  const logoScale = 0.25;  // ロゴの大きさ（0.2〜1.0）
+  // ===================================
+
+  // 画像ロード（CORS対策）
+  const logo = new Image();
+  logo.crossOrigin = "anonymous";
+  logo.src = LOGO_URL;
+
+  const bg = new Image();
+  bg.crossOrigin = "anonymous";
+  bg.src = BG_URL;
+
+  // CSS px 座標
+  let x = 100, y = 80;
+  let vx = speed, vy = speed * 0.7;
+
+  // canvasの実表示サイズ（CSS px）
+  let dpr = window.devicePixelRatio || 1;
+  let cw = 0, ch = 0;
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+
+    cw = canvas.clientWidth || window.innerWidth;
+    ch = canvas.clientHeight || window.innerHeight;
+
+    canvas.width  = Math.round(cw * dpr);
+    canvas.height = Math.round(ch * dpr);
+
+    // 描画だけDPR対応（座標はCSS px）
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  window.addEventListener("resize", resize);
+  resize();
+  requestAnimationFrame(resize);
+
+  function drawCover(image) {
+    if (!image.complete || !image.naturalWidth) return false;
+
+    const iw = image.naturalWidth;
+    const ih = image.naturalHeight;
+
+    // cover
+    const s  = Math.max(cw / iw, ch / ih);
+    const dw = iw * s, dh = ih * s;
+    const dx = (cw - dw) / 2, dy = (ch - dh) / 2;
+
+    ctx.drawImage(image, dx, dy, dw, dh);
+    return true;
+  }
+
+  function loop() {
+    ctx.clearRect(0, 0, cw, ch);
+
+    // 背景（読めてなければ黒）
+    if (!drawCover(bg)) {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, cw, ch);
+    }
+
+    // ロゴが読み込めるまで待つ
+    if (!logo.complete || !logo.naturalWidth) {
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    // ロゴサイズ（トリミング済み前提）
+    const w = logo.naturalWidth  * logoScale;
+    const h = logo.naturalHeight * logoScale;
+
+    // 移動
+    x += vx;
+    y += vy;
+
+    // 反射
+    if (x <= 0)      { x = 0;      vx = Math.abs(vx); }
+    if (y <= 0)      { y = 0;      vy = Math.abs(vy); }
+    if (x + w >= cw) { x = cw - w; vx = -Math.abs(vx); }
+    if (y + h >= ch) { y = ch - h; vy = -Math.abs(vy); }
+
+    // 描画
+    ctx.drawImage(logo, x, y, w, h);
+
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+</script>
+</body>
+</html>
